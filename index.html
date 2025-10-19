@@ -37,3 +37,280 @@
 </body>
 </html>
 
+body {
+    display: flex;
+    justify-content: center; /* 수평 가운데 정렬 */
+    align-items: flex-start; /* 세로 정렬 시작 위치 (콘텐츠가 화면 중앙에 모이도록) */
+    min-height: 100vh;
+    margin: 0;
+    padding: 20px;
+    background-color: #f4f4f9;
+    font-family: 'Arial', sans-serif;
+    text-align: center;
+}
+
+.container {
+    width: 100%;
+    max-width: 600px; /* 최대 너비 설정 */
+    padding: 20px;
+    background: white;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+}
+
+h1 {
+    color: #333;
+}
+
+/* 항목 입력 영역 스타일 */
+.input-area {
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+#itemsInput {
+    width: 98%;
+    padding: 10px;
+    margin-top: 5px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    resize: vertical;
+}
+
+#generateButton {
+    background-color: #4CAF50;
+    color: white;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 10px;
+    font-size: 16px;
+}
+
+/* 룰렛 감싸는 영역 (캔버스와 포인터 정렬) */
+.roulette-wrapper {
+    position: relative;
+    width: 500px;
+    height: 500px;
+    margin: 20px auto;
+}
+
+/* 룰렛 캔버스 스타일 */
+#rouletteCanvas {
+    display: block;
+    border: 10px solid #ddd;
+    border-radius: 50%;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+    /* JavaScript에서 transform으로 회전 처리 */
+    transition: transform 4s cubic-bezier(0.1, 0.1, 0, 1); /* 부드러운 감속을 위한 CSS 트랜지션 */
+}
+
+/* 포인터 (화살표) 스타일 */
+.pointer {
+    position: absolute;
+    top: 0; /* 룰렛의 12시 방향 */
+    left: 50%;
+    transform: translateX(-50%);
+    color: #cc0000;
+    font-size: 40px;
+    line-height: 1;
+    z-index: 10;
+}
+
+/* 버튼 스타일 */
+.controls button {
+    padding: 12px 25px;
+    margin: 10px;
+    font-size: 18px;
+    font-weight: bold;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+#spinButton {
+    background-color: #ff6347; /* 토마토 색 */
+    color: white;
+}
+
+#spinButton:hover:not(:disabled) {
+    background-color: #e55338;
+}
+
+#resetButton {
+    background-color: #6a5acd; /* 슬레이트 블루 */
+    color: white;
+}
+
+#resetButton:hover:not(:disabled) {
+    background-color: #584aae;
+}
+
+#spinButton:disabled, #resetButton:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+#result {
+    margin-top: 20px;
+    font-size: 20px;
+    font-weight: bold;
+    color: #333;
+}
+
+
+const canvas = document.getElementById('rouletteCanvas');
+const ctx = canvas.getContext('2d');
+const itemsInput = document.getElementById('itemsInput');
+const generateButton = document.getElementById('generateButton');
+const spinButton = document.getElementById('spinButton');
+const resetButton = document.getElementById('resetButton');
+const resultDisplay = document.getElementById('result');
+
+let options = []; // 룰렛 항목을 저장할 배열
+let startAngle = 0; // 룰렛의 현재 회전 각도 (애니메이션 상태 저장)
+let isSpinning = false;
+
+// 알록달록한 색상 배열
+const colors = [
+    '#FFADAD', '#FFD6A5', '#FFF3B0', '#CAFFBF', '#9BF6FF', 
+    '#A0C4FF', '#BDB2FF', '#FFC6FF', '#FDFFB6', '#E4C1F9'
+];
+
+// 항목을 입력받아 룰렛 항목 배열을 생성
+function generateRoulette() {
+    const input = itemsInput.value.trim();
+    // 쉼표(,) 또는 줄바꿈(\n)을 기준으로 항목 분리
+    options = input.split(/,|\n/).map(item => item.trim()).filter(item => item.length > 0);
+    
+    if (options.length === 0) {
+        alert('룰렛 항목을 1개 이상 입력해주세요!');
+        spinButton.disabled = true;
+        resetButton.disabled = true;
+        return;
+    }
+    
+    // 버튼 활성화
+    spinButton.disabled = false;
+    resetButton.disabled = false;
+    resultDisplay.textContent = '돌리기 버튼을 눌러주세요!';
+    
+    // 룰렛 그리기
+    drawRoulette();
+}
+
+// 룰렛 그리기 함수
+function drawRoulette() {
+    const numSegments = options.length;
+    if (numSegments === 0) return; // 항목이 없으면 그리지 않음
+
+    const arc = 2 * Math.PI / numSegments;
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const radius = 240;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    for (let i = 0; i < numSegments; i++) {
+        const angle = startAngle + i * arc;
+        
+        // 알록달록한 색상 적용 (색상 배열을 순환하며 사용)
+        ctx.fillStyle = colors[i % colors.length];
+        
+        // 섹션 그리기
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, angle, angle + arc, false);
+        ctx.lineTo(centerX, centerY);
+        ctx.fill();
+        ctx.save();
+        
+        // 텍스트 설정
+        ctx.fillStyle = '#000';
+        ctx.font = 'bold 16px Arial';
+        
+        // 텍스트를 섹션 중앙에 회전하여 배치
+        ctx.translate(centerX, centerY);
+        ctx.rotate(angle + arc / 2 + Math.PI / 2); // 텍스트 회전 및 보정
+        
+        // 텍스트 길이 제한 및 줄바꿈 처리 (간단화)
+        const text = options[i].length > 10 ? options[i].substring(0, 10) + '...' : options[i];
+        
+        // 텍스트 중앙 정렬
+        ctx.textAlign = 'center';
+        ctx.fillText(text, 0, -(radius * 0.8)); // 룰렛 가장자리 안쪽에 위치
+        ctx.restore();
+    }
+}
+
+// 룰렛 돌리기 함수
+function spin() {
+    if (isSpinning || options.length === 0) return;
+
+    isSpinning = true;
+    spinButton.disabled = true;
+    resetButton.disabled = true;
+    resultDisplay.textContent = '룰렛이 돌아가는 중...';
+    
+    // 무작위로 8~12바퀴 + 당첨 각도 회전
+    const spinTurns = 8 + Math.random() * 4; 
+    // 당첨 섹션을 결정할 최종 각도 (0 ~ 2π)
+    // 12시 방향(포인터 위치)을 기준으로 계산하기 위해 보정
+    const winningSegmentIndex = Math.floor(Math.random() * options.length);
+    const winningAngleOffset = winningSegmentIndex * (2 * Math.PI / options.length);
+    
+    // 룰렛의 0도(3시)를 기준으로 최종 멈출 위치 계산
+    // 포인터가 12시 방향에 있으므로, 90도(PI/2) 보정 필요
+    const targetAngle = (2 * Math.PI * spinTurns) - winningAngleOffset + (Math.PI / 2);
+
+    // CSS transform을 위한 총 회전 각도 (deg)
+    const totalRotationDeg = targetAngle * (180 / Math.PI);
+
+    // 캔버스에 회전 적용
+    canvas.style.transform = `rotate(${totalRotationDeg}deg)`;
+    
+    // 애니메이션 종료 후 (CSS transition 시간에 맞춤)
+    setTimeout(() => {
+        isSpinning = false;
+        resetButton.disabled = false;
+        determineWinner(winningSegmentIndex);
+    }, 4500); // CSS transition 시간(4s)보다 약간 길게 설정
+}
+
+// 당첨 결과 결정 및 표시
+function determineWinner(index) {
+    const winningOption = options[index];
+    resultDisplay.textContent = `🎉 축하합니다! 당첨 결과는 [${winningOption}]입니다!`;
+    
+    // 스핀 버튼 다시 활성화 (새로운 스핀을 위해)
+    spinButton.disabled = false; 
+}
+
+
+// 초기화 함수
+function resetRoulette() {
+    if (isSpinning) return;
+    
+    // 캔버스 회전을 0도로 초기화 (부드러운 전환을 위해 애니메이션 효과 사용)
+    canvas.style.transition = 'transform 1s ease-out';
+    canvas.style.transform = 'rotate(0deg)';
+    
+    // 룰렛 회전 상태 초기화 후, 다음 스핀을 위해 transition을 다시 설정
+    setTimeout(() => {
+        canvas.style.transition = 'transform 4s cubic-bezier(0.1, 0.1, 0, 1)';
+        resultDisplay.textContent = '돌리기 버튼을 눌러주세요!';
+        spinButton.disabled = false;
+        // drawRoulette(); // 항목은 유지되므로 다시 그릴 필요는 없음
+    }, 1000);
+}
+
+// 이벤트 리스너 연결
+generateButton.addEventListener('click', generateRoulette);
+spinButton.addEventListener('click', spin);
+resetButton.addEventListener('click', resetRoulette);
+
+// 페이지 로드 시 초기 룰렛 생성
+generateRoulette();
+
+
